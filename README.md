@@ -1,54 +1,77 @@
-# wordle 1.0.2
+# wordle 2.0
 
-`python main.py`
-
-Or, to play in the hard mode:
-
-`python main.py --hard`
-
-(Solving Wordle in hard mode is usually faster, but less optimal.)
-
-## 1. How To Use
-1. For the first round, enter 'serai' or 'lares' into Wordle.
-1. Enter the result from Wordle into the script as a five-digit number (Grey: 0, Green: 1, Yellow: 2)
-1. Enter the suggested word into Wordle
-1. Repeat 2 and 3 until you get the final answer.
-
-
-## 2. Example
-Wordle from Aug. 8, 2022.
-
-![image](https://user-images.githubusercontent.com/35788350/183581651-87b4b01c-3732-4bab-9a7d-32d4bbc1fa4b.png)
+An information-theoretic Wordle solver.
 
 ```
-$ python wordle_play.py
-[round 1]
-(suggestion: 'serai' or 'lares')
+python main.py            # optimal mode (any word may be guessed)
+python main.py --hard     # hard mode (every guess must be a possible answer)
+```
 
-your guess (type in 'exit' to exit): serai
-result (type in 'exit' to exit): 00002
+## How it works
+
+Each turn the solver looks at every allowed guess and asks: *how well would
+this guess split the remaining possible answers into feedback groups?* It picks
+the guess that, on average, shrinks the candidate set the most. The default
+metric is **entropy** — it maximises the expected information (in bits) gained
+from the guess, which is the standard near-optimal strategy.
+
+Three metrics are available (see `wordle.get_optimal_guess`):
+
+| metric    | meaning                                   | best opener |
+|-----------|-------------------------------------------|-------------|
+| `entropy` | maximise expected information (default)   | `tares`     |
+| `mean`    | minimise expected remaining candidates    | `lares`     |
+| `max`     | minimax — minimise the worst-case bucket  | `seria`     |
+
+## How to use
+
+1. Round 1: type the suggested opener (`tares`) into Wordle.
+2. Enter Wordle's colors back as a 5-digit code — **grey `0`, green `1`,
+   yellow `2`** (e.g. `00210`).
+3. Type the next suggested word into Wordle.
+4. Repeat until solved. Type `exit` at any prompt to quit.
+
+## Example
+
+```
+$ python main.py
+[round 1]
+(suggestion: 'tares')
+
+your guess: tares
+result: 00002
 
 [round 2]
-there are 513 possible answers.
-(suggestion: 'linty')                                                                                                                                                   
+there are 1022 possible answers.
+(suggestion: 'colin')
 
-your guess (type in 'exit' to exit): linty
-result (type in 'exit' to exit): 02220
+your guess: colin
+result: 02220
+...
+```
 
-[round 3]
-there are 20 possible answers.
-(suggestion: 'count')                                                                                                                                                   
+## Finding the best opener
 
-your guess (type in 'exit' to exit): count
-result (type in 'exit' to exit): 00221
+`best_starting.py` scores every allowed word as an opener under all three
+metrics, in parallel across CPU cores:
 
-[round 4]
-there are 3 possible answers.
-(suggestion: 'affix')                                                                                                                                                   
+```
+python best_starting.py            # top 15 for each metric
+python best_starting.py entropy    # just the entropy ranking
+python best_starting.py entropy 25 # top 25
+```
 
-your guess (type in 'exit' to exit): affix
-result (type in 'exit' to exit): 00110
+## Notes on correctness
 
-[round 5]
-answer: unfit
+`get_result` implements true Wordle feedback, including the repeated-letter
+rule: greens are assigned first, then a letter is only marked yellow while
+unused copies of it remain in the answer. (Earlier versions mis-scored words
+with duplicate letters.)
+
+## Files
+
+- `wordle.py` — solver engine (feedback, candidate filtering, guess scoring).
+- `main.py` — interactive CLI.
+- `best_starting.py` — opener search.
+- `data/valid-wordle-words.txt` — the allowed word list.
 ```
